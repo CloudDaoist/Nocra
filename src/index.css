@@ -75,3 +75,36 @@
     @apply bg-background text-foreground;
   }
 }
+
+.plugin-html-content p {
+  margin-bottom: 0.75em;
+}
+
+.plugin-html-content p:last-child {
+  margin-bottom: 0;
+}
+
+.plugin-html-content br {
+  display: block;
+  content: "";
+  margin-top: 0.5em;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}

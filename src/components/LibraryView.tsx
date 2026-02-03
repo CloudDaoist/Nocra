@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, Filter, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -85,17 +84,17 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                 </div>
             </div>
 
-            <ScrollArea className="flex-1 px-8">
+            <div className="flex-1 px-8 overflow-y-auto">
                 <div className="pb-10">
                     {viewMode === 'grid' ? (
-                        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-6 gap-y-8">
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-6">
                             {filteredLibrary.map((novel, i) => (
                                 <div 
                                     key={i} 
-                                    className="flex flex-col gap-3 group cursor-pointer"
+                                    className="flex flex-col gap-2 group cursor-pointer"
                                     onClick={() => onSelectNovel(novel)}
                                 >
-                                    <div className="aspect-[3/4.2] rounded-xl bg-muted overflow-hidden relative shadow-md ring-1 ring-border/20 group-hover:ring-primary/30 transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
+                                    <div className="aspect-[3/4.5] rounded-xl bg-muted overflow-hidden relative shadow-sm ring-1 ring-border/20 group-hover:ring-primary/30 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-1">
                                         {novel.cover ? (
                                             <img 
                                                 src={novel.cover} 
@@ -103,31 +102,31 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-muted-foreground/10 uppercase">
+                                            <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-muted-foreground/10 uppercase">
                                                 {(novel.title || "??").substring(0, 2)}
                                             </div>
                                         )}
                                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button 
                                                 onClick={(e) => handleDelete(e, novel)}
-                                                className="bg-black/40 backdrop-blur-md p-1.5 rounded-lg text-white hover:bg-destructive/80 transition-colors"
+                                                className="bg-black/40 backdrop-blur-md p-1.5 rounded-md text-white hover:bg-destructive/80 transition-colors"
                                             >
-                                                <Trash2 size={14} />
+                                                <Trash2 size={12} />
                                             </button>
                                         </div>
-                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 pt-10 translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
+                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent p-3 pt-8 translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-white/90 bg-primary/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                <span className="text-[9px] font-bold text-white/90 bg-primary/80 px-1.5 py-0.5 rounded uppercase tracking-wider truncate max-w-[60%]">
                                                     {novel.provider}
                                                 </span>
-                                                <span className="text-[10px] text-white/80 font-medium">
+                                                <span className="text-[9px] text-white/80 font-medium shrink-0">
                                                     {novel.chapters.length} CH
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="px-1">
-                                        <h3 className="font-bold text-sm line-clamp-2 leading-snug group-hover:text-primary transition-colors duration-200">
+                                        <h3 className="font-bold text-[11px] line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-200">
                                             {novel.title || "Unknown Title"}
                                         </h3>
                                     </div>
@@ -175,7 +174,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                         </div>
                     )}
                 </div>
-            </ScrollArea>
+            </div>
         </div>
     );
 };

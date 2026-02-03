@@ -542,13 +542,28 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
                 const lines = doc.splitTextToSize(text, contentWidth);
                 
                 let y = 40 + (chapTitleLines.length * 10);
+                let lastLineEmpty = false;
+                
                 for (const line of lines) {
+                    const isLineEmpty = line.trim().length === 0;
+                    
+                    // Collapse consecutive empty lines
+                    if (isLineEmpty && lastLineEmpty) continue;
+                    
                     if (y > 280) {
                         doc.addPage();
                         y = 20;
                     }
-                    doc.text(line, margin, y);
-                    y += 6;
+                    
+                    if (line.trim().length > 0) {
+                        doc.text(line, margin, y);
+                        y += 6;
+                        lastLineEmpty = false;
+                    } else {
+                        // Paragraph break
+                        y += 4; 
+                        lastLineEmpty = true;
+                    }
                 }
             }
             doc.save(filePath);

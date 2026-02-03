@@ -208,14 +208,14 @@ const Reader: React.FC<ReaderProps> = ({ novelUrl, chapter, onClose, onReadNext 
                     {error && <div className="text-center py-20 text-red-500">{error}</div>}
 
                     {content && content.type === 'text' && (
-                        <div className="space-y-4 whitespace-pre-wrap">
+                        <div className="whitespace-pre-wrap">
                             {content.content}
                         </div>
                     )}
 
                     {content && content.type === 'html' && (
                         <div 
-                            className="space-y-4 plugin-html-content"
+                            className="plugin-html-content"
                             dangerouslySetInnerHTML={{ __html: content.content }}
                         />
                     )}

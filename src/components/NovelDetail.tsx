@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import ChapterList from './ChapterList';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, RefreshCw, Download, BookOpen, Clock, User, Share2, MoreHorizontal, Loader2, Trash2, FileOutput } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -120,8 +119,8 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                 </div>
             </div>
 
-            <ScrollArea className="flex-1 z-10">
-                <div className="px-8 pb-10">
+            <div className="flex-1 px-8 pb-10 overflow-y-auto z-10">
+                <div>
                     {/* Novel Hero Section */}
                     <div className="flex flex-col md:flex-row gap-10 items-start pt-4">
                         <div className="w-56 shrink-0 group relative">
@@ -254,7 +253,7 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                         </div>
                     </div>
                 </div>
-            </ScrollArea>
+            </div>
         </div>
     );
 };
