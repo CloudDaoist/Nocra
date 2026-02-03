@@ -69,6 +69,14 @@ function App() {
         window.api.send('refresh-novel', url);
     };
 
+    const handleDeleteNovel = (url: string) => {
+        window.api.send('remove-novel', url);
+        if (selectedNovel && selectedNovel.url === url) {
+            setSelectedNovel(null);
+            setView('library');
+        }
+    };
+
     const handleSelectNovel = (novel: any) => {
         setSelectedNovel(novel);
         setView('detail');
@@ -111,6 +119,7 @@ function App() {
                                 library={library}
                                 onSelectNovel={handleSelectNovel}
                                 onAddNovel={() => setShowAddModal(true)}
+                                onDeleteNovel={handleDeleteNovel}
                             />
                         )}
 
@@ -127,6 +136,7 @@ function App() {
                                 onDownload={handleDownload}
                                 onRefresh={handleRefreshNovel}
                                 onRead={handleRead}
+                                onDelete={handleDeleteNovel}
                             />
                         )}
 

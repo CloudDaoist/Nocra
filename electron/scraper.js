@@ -77,7 +77,11 @@ class NocraScraper {
         
         // Pass default filters if not provided
         const filters = plugin.filters || {};
-        return plugin.popularNovels(page, { filters });
+        const novels = await plugin.popularNovels(page, { filters });
+        return novels.map(n => ({
+            ...n,
+            cover: this.filterCover(n.cover)
+        }));
     }
 
     async searchNovels(pluginId, query, page = 1) {
@@ -86,7 +90,18 @@ class NocraScraper {
         }
         const plugin = pluginManager.getPluginById(pluginId)?.instance;
         if (!plugin) return [];
-        return plugin.searchNovels(query, page);
+        const novels = await plugin.searchNovels(query, page);
+        return novels.map(n => ({
+            ...n,
+            cover: this.filterCover(n.cover)
+        }));
+    }
+
+    filterCover(cover) {
+        if (!cover) return null;
+        const uglyCover = 'https://github.com/LNReader/lnreader-plugins/blob/main/icons/src/coverNotAvailable.jpg?raw=true';
+        if (cover === uglyCover) return null;
+        return cover;
     }
 
     async popularNovelsLegacy(page = 1) {
@@ -229,9 +244,10 @@ class NocraScraper {
                 // For now use a placeholder or try to find it
                 return { author: authorEl.replace('작업자', '').trim(), cover: coverEl, summary: summaryEl, title };
             });
-            contentTitle = metadata.title;
+            contentTitle = metadata.title || "Booktoki Novel";
         } catch (e) {
             this.log("Failed to extract metadata.");
+            contentTitle = "Booktoki Novel";
         }
 
         while (true) {
@@ -280,9 +296,23 @@ class NocraScraper {
         this.log(`Using plugin: ${plugin.name}`);
         
         try {
-            // Plugins usually need a path relative to their site URL
-            // Ensure we extract only the path part and it starts with /
-            let novelPath = url.replace(plugin.site, '');
+            // Robust path extraction
+            let novelPath = url;
+            const domains = [plugin.site, plugin.novelPrefix].filter(Boolean);
+            for (const domain of domains) {
+                if (url.startsWith(domain)) {
+                    novelPath = url.replace(domain, '');
+                    break;
+                }
+            }
+            // If still starts with http, try to extract path via URL object
+            if (novelPath.startsWith('http')) {
+                try {
+                    const urlObj = new URL(url);
+                    novelPath = urlObj.pathname + urlObj.search;
+                } catch (e) {}
+            }
+
             if (!novelPath.startsWith('/')) {
                 novelPath = '/' + novelPath;
             }
@@ -303,13 +333,13 @@ class NocraScraper {
 
             return { 
                 chapters, 
-                contentTitle: novel.name, 
+                contentTitle: novel.name || "Untitled Novel", 
                 siteInfo,
                 metadata: {
-                    author: novel.author,
-                    summary: novel.summary,
-                    cover: novel.cover,
-                    status: novel.status
+                    author: novel.author || "Unknown",
+                    summary: novel.summary || "",
+                    cover: this.filterCover(novel.cover),
+                    status: novel.status || "Unknown"
                 }
             };
         } catch (e) {

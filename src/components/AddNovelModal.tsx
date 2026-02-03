@@ -1,22 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const AddNovelModal = ({ onClose, onAdd }) => {
     const [url, setUrl] = useState('');
     const [plugins, setPlugins] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         window.api.send('get-plugins');
-        const removeListener = window.api.receive('plugins-list', (data) => {
+        const removePluginListener = window.api.receive('plugins-list', (data) => {
             setPlugins(data);
         });
+        const removeErrorListener = window.api.receive('error', (err) => {
+            setIsLoading(false);
+        });
+
         return () => {
-            if (typeof removeListener === 'function') removeListener();
+            if (typeof removePluginListener === 'function') removePluginListener();
+            if (typeof removeErrorListener === 'function') removeErrorListener();
         };
     }, []);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (url) onAdd(url);
+        if (url && !isLoading) {
+            setIsLoading(true);
+            onAdd(url);
+        }
     };
 
     return (
@@ -24,7 +34,7 @@ const AddNovelModal = ({ onClose, onAdd }) => {
             <div style={styles.modal}>
                 <div style={styles.header}>
                     <h3>Add New Novel</h3>
-                    <button style={styles.closeBtn} onClick={onClose}>×</button>
+                    <button style={styles.closeBtn} onClick={onClose} disabled={isLoading}>×</button>
                 </div>
                 <form onSubmit={handleSubmit} style={styles.form}>
                     <input
@@ -34,6 +44,7 @@ const AddNovelModal = ({ onClose, onAdd }) => {
                         onChange={(e) => setUrl(e.target.value)}
                         style={styles.input}
                         autoFocus
+                        disabled={isLoading}
                     />
                     
                     <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-[-10px] px-1">
@@ -49,8 +60,17 @@ const AddNovelModal = ({ onClose, onAdd }) => {
                     </div>
 
                     <div style={styles.actions}>
-                        <button type="button" onClick={onClose} style={styles.cancelBtn}>Cancel</button>
-                        <button type="submit" style={styles.submitBtn} disabled={!url}>Add to Library</button>
+                        <button type="button" onClick={onClose} style={styles.cancelBtn} disabled={isLoading}>Cancel</button>
+                        <button type="submit" style={styles.submitBtn} disabled={!url || isLoading}>
+                            {isLoading ? (
+                                <div className="flex items-center gap-2">
+                                    <Loader2 className="animate-spin" size={16} />
+                                    <span>Adding...</span>
+                                </div>
+                            ) : (
+                                "Add to Library"
+                            )}
+                        </button>
                     </div>
                 </form>
             </div>

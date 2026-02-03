@@ -220,7 +220,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({ onSelectNovel }) => {
                                     <div 
                                         key={i} 
                                         className="flex flex-col gap-3 group cursor-pointer"
-                                        onClick={() => onSelectNovel(novel.url)}
+                                        onClick={() => onSelectNovel(novel.url || novel.path)}
                                     >
                                         <div className="aspect-[2/3] rounded-xl bg-muted overflow-hidden relative shadow-md ring-1 ring-border/50 group-hover:ring-primary/50 transition-all group-hover:shadow-xl group-hover:-translate-y-1">
                                             {novel.cover ? (

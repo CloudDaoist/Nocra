@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ChapterList from './ChapterList';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, RefreshCw, Download, BookOpen, Clock, User, Share2, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Download, BookOpen, Clock, User, Share2, MoreHorizontal, Loader2, Trash2, FileOutput } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NovelDetailProps {
@@ -13,19 +13,38 @@ interface NovelDetailProps {
     onDownload: (chapters: any[]) => void;
     onRefresh: (url: string) => void;
     onRead: (chapter: any) => void;
+    onDelete: (url: string) => void;
 }
 
-const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, onRefresh, onRead }) => {
+const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, onRefresh, onRead, onDelete }) => {
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
     const [activeTab, setActiveTab] = useState('available'); 
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+
+    useEffect(() => {
+        const removeOpListener = window.api.receive('operation-success', ({ type }) => {
+            if (type === 'refresh-novel') {
+                setIsRefreshing(false);
+            }
+        });
+        const removeErrorListener = window.api.receive('error', (err) => {
+            setIsRefreshing(false);
+        });
+
+        return () => {
+            if (typeof removeOpListener === 'function') removeOpListener();
+            if (typeof removeErrorListener === 'function') removeErrorListener();
+        };
+    }, []);
 
     const isDownloaded = (chapterNum: any) => {
         return novel.downloads && novel.downloads[chapterNum];
     };
 
     const displayedChapters = activeTab === 'available'
-        ? novel.chapters.filter((c: any) => !isDownloaded(c.num))
-        : novel.chapters.filter((c: any) => isDownloaded(c.num));
+        ? (novel.chapters || []).filter((c: any) => !isDownloaded(c.num))
+        : (novel.chapters || []).filter((c: any) => isDownloaded(c.num));
 
     const toggleChapter = (index: number) => {
         setSelectedIndices(prev =>
@@ -55,6 +74,21 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
         }
     };
 
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        onRefresh(novel.url);
+    };
+
+    const handleExport = (format: 'epub' | 'pdf' | 'txt') => {
+        const downloadedChapters = novel.chapters.filter((c: any) => isDownloaded(c.num));
+        if (downloadedChapters.length === 0) return;
+        window.api.send('export-novel', {
+            url: novel.url,
+            chapters: downloadedChapters,
+            format
+        });
+    };
+
     return (
         <div className="flex flex-col h-full overflow-hidden bg-background relative">
             {/* Immersive Header Backdrop */}
@@ -70,11 +104,18 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                     <ArrowLeft size={20} />
                 </Button>
                 <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="rounded-full bg-background/50 backdrop-blur-md border border-border/50">
-                        <Share2 size={18} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="rounded-full bg-background/50 backdrop-blur-md border border-border/50">
-                        <MoreHorizontal size={18} />
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full bg-background/50 backdrop-blur-md border border-border/50 text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                            if (confirm(`Are you sure you want to delete "${novel.title}"?`)) {
+                                onDelete(novel.url);
+                                onBack();
+                            }
+                        }}
+                    >
+                        <Trash2 size={18} />
                     </Button>
                 </div>
             </div>
@@ -89,7 +130,7 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                     <img src={novel.cover} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full bg-muted flex items-center justify-center text-6xl font-bold text-muted-foreground/10 uppercase">
-                                        {novel.title.slice(0, 2)}
+                                        {(novel.title || "??").slice(0, 2)}
                                     </div>
                                 )}
                             </div>
@@ -108,7 +149,7 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                     )}
                                 </div>
                                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.1] text-foreground drop-shadow-sm">
-                                    {novel.title}
+                                    {novel.title || "Unknown Title"}
                                 </h1>
                                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground pt-1">
                                     <div className="flex items-center gap-2">
@@ -121,7 +162,7 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <BookOpen size={16} className="text-primary/70" />
-                                        <span>{novel.chapters.length} Chapters</span>
+                                        <span>{(novel.chapters || []).length} Chapters</span>
                                     </div>
                                 </div>
                             </div>
@@ -130,15 +171,28 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                 <Button size="lg" className="h-12 px-8 gap-2 shadow-xl shadow-primary/20 rounded-xl" onClick={handleReadLatest}>
                                     <BookOpen size={20} /> Start Reading
                                 </Button>
-                                <Button size="lg" variant="outline" className="h-12 px-6 gap-2 rounded-xl bg-background/50 backdrop-blur-md border-border/50 hover:bg-muted" onClick={() => onRefresh(novel.url)}>
-                                    <RefreshCw size={18} /> Refresh
+                                <Button 
+                                    size="lg" 
+                                    variant="outline" 
+                                    className="h-12 px-6 gap-2 rounded-xl bg-background/50 backdrop-blur-md border-border/50 hover:bg-muted" 
+                                    onClick={handleRefresh}
+                                    disabled={isRefreshing}
+                                >
+                                    {isRefreshing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />} 
+                                    {isRefreshing ? "Refreshing..." : "Refresh"}
                                 </Button>
                             </div>
 
                             {novel.metadata?.summary && (
                                 <div className="space-y-2">
                                     <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Summary</h3>
-                                    <p className="text-muted-foreground leading-relaxed text-sm max-w-3xl line-clamp-4 hover:line-clamp-none transition-all cursor-pointer">
+                                    <p 
+                                        className={cn(
+                                            "text-muted-foreground leading-relaxed text-sm max-w-3xl cursor-pointer transition-all",
+                                            isSummaryExpanded ? "line-clamp-none" : "line-clamp-4"
+                                        )}
+                                        onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                                    >
                                         {novel.metadata.summary}
                                     </p>
                                 </div>
@@ -162,7 +216,20 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                 </TabsList>
                             </Tabs>
 
-                            <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="flex items-center gap-3 w-full md:w-auto z-20">
+                                {activeTab === 'downloaded' && novel.chapters.some((c: any) => isDownloaded(c.num)) && (
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" className="gap-2 rounded-xl h-11 px-4 border-border/50 bg-background/50 backdrop-blur-md" onClick={() => handleExport('epub')}>
+                                            <FileOutput size={16} /> Export EPUB
+                                        </Button>
+                                        <Button variant="outline" size="sm" className="gap-2 rounded-xl h-11 px-4 border-border/50 bg-background/50 backdrop-blur-md" onClick={() => handleExport('pdf')}>
+                                            <FileOutput size={16} /> Export PDF
+                                        </Button>
+                                        <Button variant="outline" size="sm" className="gap-2 rounded-xl h-11 px-4 border-border/50 bg-background/50 backdrop-blur-md" onClick={() => handleExport('txt')}>
+                                            <FileOutput size={16} /> Export TXT
+                                        </Button>
+                                    </div>
+                                )}
                                 {selectedIndices.length > 0 && activeTab === 'available' && (
                                     <Button onClick={handleDownloadSelected} className="gap-2 h-11 px-6 rounded-xl animate-in fade-in zoom-in duration-200">
                                         <Download size={18} />

@@ -1,26 +1,5 @@
 const path = require('path');
 const fs = require('fs');
-
-// Extreme fallback for web globals in Electron/Node environment
-if (typeof global.File === 'undefined') {
-    global.File = class File extends Blob {
-        constructor(parts, filename, options = {}) {
-            super(parts, options);
-            this.name = filename;
-            this.lastModified = options.lastModified || Date.now();
-        }
-    };
-}
-
-const undici = require('undici');
-if (typeof global.fetch === 'undefined') {
-    global.fetch = undici.fetch;
-    global.FormData = undici.FormData;
-    global.Headers = undici.Headers;
-    global.Request = undici.Request;
-    global.Response = undici.Response;
-}
-
 const createJiti = require('jiti');
 
 
@@ -77,7 +56,9 @@ class PluginManager {
             for (const file of pluginFiles) {
                 const pluginPath = path.join(langPath, file);
                 try {
-                    const plugin = jiti(pluginPath);
+                    let plugin = jiti(pluginPath);
+                    if (plugin.default) plugin = plugin.default; // Unwrap ES module default export
+                    
                     if (plugin && plugin.id) {
                         this.plugins.set(plugin.id, {
                             instance: plugin,
@@ -101,8 +82,14 @@ class PluginManager {
 
     getPluginByUrl(url) {
         for (const [id, pluginInfo] of this.plugins) {
-            if (url.includes(pluginInfo.instance.site)) {
-                return pluginInfo.instance;
+            const instance = pluginInfo.instance;
+            // Standard site match
+            if (instance.site && instance.site.length > 5 && url.includes(instance.site)) {
+                return instance;
+            }
+            // Multi-domain support (like Syosetu)
+            if (instance.novelPrefix && instance.novelPrefix.length > 5 && url.includes(instance.novelPrefix)) {
+                return instance;
             }
         }
         return null;

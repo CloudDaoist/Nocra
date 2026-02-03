@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Search, Filter, MoreVertical, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, Filter, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -17,16 +17,24 @@ interface LibraryViewProps {
     library: Novel[];
     onSelectNovel: (novel: Novel) => void;
     onAddNovel: () => void;
+    onDeleteNovel: (url: string) => void;
 }
 
-const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAddNovel }) => {
+const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAddNovel, onDeleteNovel }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     const filteredLibrary = library.filter(n => 
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.provider.toLowerCase().includes(searchQuery.toLowerCase())
+        (n.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (n.provider?.toLowerCase() || "").includes(searchQuery.toLowerCase())
     );
+
+    const handleDelete = (e: React.MouseEvent, novel: Novel) => {
+        e.stopPropagation();
+        if (confirm(`Are you sure you want to delete "${novel.title}"?`)) {
+            onDeleteNovel(novel.url);
+        }
+    };
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
@@ -87,24 +95,27 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                                     className="flex flex-col gap-3 group cursor-pointer"
                                     onClick={() => onSelectNovel(novel)}
                                 >
-                                    <div className="aspect-[3/4.2] rounded-2xl bg-muted overflow-hidden relative shadow-md ring-1 ring-border/50 group-hover:ring-primary/50 transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1.5">
+                                    <div className="aspect-[3/4.2] rounded-xl bg-muted overflow-hidden relative shadow-md ring-1 ring-border/20 group-hover:ring-primary/30 transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
                                         {novel.cover ? (
                                             <img 
                                                 src={novel.cover} 
                                                 alt={novel.title} 
-                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-muted-foreground/10 uppercase">
-                                                {novel.title.substring(0, 2)}
+                                                {(novel.title || "??").substring(0, 2)}
                                             </div>
                                         )}
                                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="bg-black/40 backdrop-blur-md p-1.5 rounded-lg text-white hover:bg-black/60">
-                                                <MoreVertical size={14} />
-                                            </div>
+                                            <button 
+                                                onClick={(e) => handleDelete(e, novel)}
+                                                className="bg-black/40 backdrop-blur-md p-1.5 rounded-lg text-white hover:bg-destructive/80 transition-colors"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
                                         </div>
-                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-10 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 pt-10 translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] font-bold text-white/90 bg-primary/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
                                                     {novel.provider}
@@ -117,7 +128,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                                     </div>
                                     <div className="px-1">
                                         <h3 className="font-bold text-sm line-clamp-2 leading-snug group-hover:text-primary transition-colors duration-200">
-                                            {novel.title}
+                                            {novel.title || "Unknown Title"}
                                         </h3>
                                     </div>
                                 </div>
@@ -135,11 +146,16 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                                         {novel.cover && <img src={novel.cover} className="w-full h-full object-cover" />}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{novel.title}</h3>
-                                        <p className="text-xs text-muted-foreground uppercase mt-0.5">{novel.provider} • {novel.chapters.length} Chapters</p>
+                                        <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{novel.title || "Unknown Title"}</h3>
+                                        <p className="text-xs text-muted-foreground uppercase mt-0.5">{novel.provider || "Unknown"} • {(novel.chapters || []).length} Chapters</p>
                                     </div>
-                                    <Button variant="ghost" size="icon" className="text-muted-foreground">
-                                        <MoreVertical size={18} />
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                        onClick={(e) => handleDelete(e, novel)}
+                                    >
+                                        <Trash2 size={18} />
                                     </Button>
                                 </div>
                             ))}
