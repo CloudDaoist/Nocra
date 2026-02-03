@@ -56,13 +56,13 @@ class NocraScraper {
         // Legacy Support: Booktoki
         if (url.match(/^https:\/\/booktoki[0-9]+.com\/novel\/[0-9]+/)) {
             const domain = url.match(/^https:\/\/booktoki[0-9]+.com/)[0];
-            return { site: 'booktoki', title: 'Booktoki', domain, driver: 'legacy' };
+            return { site: 'booktoki', title: 'Booktoki', domain, driver: 'legacy', pluginId: 'booktoki' };
         }
         
         // Plugin Support
         const plugin = pluginManager.getPluginByUrl(url);
         if (plugin) {
-            return { site: plugin.id, title: plugin.name, driver: 'plugin', plugin };
+            return { site: plugin.id, title: plugin.name, driver: 'plugin', pluginId: plugin.id };
         }
 
         return null;
@@ -72,7 +72,7 @@ class NocraScraper {
         if (pluginId === 'booktoki') {
             return this.popularNovelsLegacy(page);
         }
-        const plugin = pluginManager.getPluginById(pluginId)?.instance;
+        const plugin = await pluginManager.getPluginInstance(pluginId);
         if (!plugin) return [];
         
         // Pass default filters if not provided
@@ -88,7 +88,7 @@ class NocraScraper {
         if (pluginId === 'booktoki') {
             return this.searchNovelsLegacy(query, page);
         }
-        const plugin = pluginManager.getPluginById(pluginId)?.instance;
+        const plugin = await pluginManager.getPluginInstance(pluginId);
         if (!plugin) return [];
         const novels = await plugin.searchNovels(query, page);
         return novels.map(n => ({
@@ -292,7 +292,8 @@ class NocraScraper {
     }
 
     async fetchChapterListPlugin(url, siteInfo) {
-        const plugin = siteInfo.plugin;
+        const plugin = await pluginManager.getPluginInstance(siteInfo.pluginId);
+        if (!plugin) throw new Error("Plugin not available");
         this.log(`Using plugin: ${plugin.name}`);
         
         try {
@@ -378,7 +379,8 @@ class NocraScraper {
     }
 
     async downloadChapterPlugin(chapter, saveDir, siteInfo, contentTitle) {
-        const plugin = siteInfo.plugin;
+        const plugin = await pluginManager.getPluginInstance(siteInfo.pluginId);
+        if (!plugin) throw new Error("Plugin not available");
         try {
             this.log(`Fetching content for ${chapter.title}...`);
             const htmlContent = await plugin.parseChapter(chapter.url);

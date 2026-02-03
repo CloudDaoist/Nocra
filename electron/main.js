@@ -34,6 +34,7 @@ const axios = require('axios');
 const nodepub = require('nodepub');
 const cheerio = require('cheerio');
 const { jsPDF } = require('jspdf');
+const pluginManager = require('./plugin-system/manager');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -109,7 +110,16 @@ function createWindow() {
     });
 }
 
-app.whenReady().then(() => {
+let pluginCacheDir = null;
+
+app.whenReady().then(async () => {
+    pluginCacheDir = path.join(app.getPath('userData'), 'plugins-cache');
+    try {
+        await pluginManager.init({ cacheDir: pluginCacheDir });
+    } catch (e) {
+        console.error('Plugin manager init failed:', e.message);
+    }
+
     createWindow();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -140,7 +150,6 @@ ipcMain.on('get-library', (event) => {
 });
 
 ipcMain.on('get-plugins', (event) => {
-    const pluginManager = require('./plugin-system/manager');
     const plugins = pluginManager.getAllPlugins();
     event.reply('plugins-list', plugins);
 });
@@ -152,10 +161,9 @@ ipcMain.on('search-novels', async (event, { query, pluginId }) => {
         event.reply('search-results', novels.map(n => {
             let url = n.path;
             if (url && !url.startsWith('http')) {
-                const pluginManager = require('./plugin-system/manager');
-                const plugin = pluginManager.getPluginById(pluginId)?.instance;
-                if (plugin) {
-                    url = plugin.site + n.path.replace(/^\//, '');
+                const meta = pluginManager.getPluginById(pluginId)?.meta;
+                if (meta?.site) {
+                    url = meta.site + n.path.replace(/^\//, '');
                 }
             }
             return { ...n, url };
@@ -172,10 +180,9 @@ ipcMain.on('popular-novels', async (event, { pluginId, page = 1 }) => {
         event.reply('popular-results', novels.map(n => {
             let url = n.path;
             if (url && !url.startsWith('http')) {
-                const pluginManager = require('./plugin-system/manager');
-                const plugin = pluginManager.getPluginById(pluginId)?.instance;
-                if (plugin) {
-                    url = plugin.site + n.path.replace(/^\//, '');
+                const meta = pluginManager.getPluginById(pluginId)?.meta;
+                if (meta?.site) {
+                    url = meta.site + n.path.replace(/^\//, '');
                 }
             }
             return { ...n, url };
