@@ -74,7 +74,10 @@ class NocraScraper {
         }
         const plugin = pluginManager.getPluginById(pluginId)?.instance;
         if (!plugin) return [];
-        return plugin.popularNovels(page, { filters: undefined });
+        
+        // Pass default filters if not provided
+        const filters = plugin.filters || {};
+        return plugin.popularNovels(page, { filters });
     }
 
     async searchNovels(pluginId, query, page = 1) {
@@ -278,7 +281,12 @@ class NocraScraper {
         
         try {
             // Plugins usually need a path relative to their site URL
-            const novelPath = url.replace(plugin.site, '');
+            // Ensure we extract only the path part and it starts with /
+            let novelPath = url.replace(plugin.site, '');
+            if (!novelPath.startsWith('/')) {
+                novelPath = '/' + novelPath;
+            }
+            
             this.log(`Fetching novel data for path: ${novelPath}`);
             
             const novel = await plugin.parseNovel(novelPath);

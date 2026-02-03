@@ -46,6 +46,11 @@ const BrowseView: React.FC<BrowseViewProps> = ({ onSelectNovel }) => {
             }
         });
 
+        const removeErrorListener = window.api.receive('error', (err) => {
+            console.error("BrowseView Error:", err);
+            setLoading(false);
+        });
+
         window.api.send('get-plugins');
 
         return () => {
@@ -53,6 +58,7 @@ const BrowseView: React.FC<BrowseViewProps> = ({ onSelectNovel }) => {
             if (typeof removeListener === 'function') removeListener();
             if (typeof removePopularListener === 'function') removePopularListener();
             if (typeof removeSearchListener === 'function') removeSearchListener();
+            if (typeof removeErrorListener === 'function') removeErrorListener();
         };
     }, []);
 

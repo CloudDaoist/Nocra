@@ -42,6 +42,11 @@ function App() {
             setDownloadProgress(null);
         });
 
+        const removeErrorListener = window.api.receive('error', (err) => {
+            console.error("Global Error:", err);
+            setLogs(prev => [...prev, `Error: ${err}`].slice(-20));
+        });
+
         // Initial fetch
         window.api.send('get-library');
 
@@ -51,6 +56,7 @@ function App() {
             if (typeof removeOpListener === 'function') removeOpListener();
             if (typeof removeProgressListener === 'function') removeProgressListener();
             if (typeof removeCompleteListener === 'function') removeCompleteListener();
+            if (typeof removeErrorListener === 'function') removeErrorListener();
         };
     }, []);
 
