@@ -1,0 +1,160 @@
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import LibraryView from './components/LibraryView';
+import BrowseView from './components/BrowseView';
+import NovelDetail from './components/NovelDetail';
+import Reader from './components/Reader';
+import AddNovelModal from './components/AddNovelModal';
+import StatusBar from './components/StatusBar';
+
+function App() {
+    // Navigation
+    const [view, setView] = useState('library'); // 'library', 'browse', 'detail', 'reader', 'settings'
+
+    // Data State
+    const [library, setLibrary] = useState<any[]>([]);
+    const [selectedNovel, setSelectedNovel] = useState<any>(null);
+    const [readingChapter, setReadingChapter] = useState<any>(null);
+
+    // UI State
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [logs, setLogs] = useState<string[]>([]);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState<any>(null);
+
+    useEffect(() => {
+        // Listeners
+        const removeLibListener = window.api.receive('library-data', (data) => setLibrary(data));
+        const removeLogListener = window.api.receive('log-update', (msg: string) => setLogs(prev => [...prev, msg].slice(-20))); 
+
+        const removeOpListener = window.api.receive('operation-success', ({ type }) => {
+            if (type === 'add-novel') {
+                setShowAddModal(false);
+            }
+        });
+
+        const removeProgressListener = window.api.receive('download-progress', (progress) => {
+            setDownloadProgress(progress);
+        });
+
+        const removeCompleteListener = window.api.receive('download-complete', () => {
+            setIsDownloading(false);
+            setDownloadProgress(null);
+        });
+
+        // Initial fetch
+        window.api.send('get-library');
+
+        return () => {
+            if (typeof removeLibListener === 'function') removeLibListener();
+            if (typeof removeLogListener === 'function') removeLogListener();
+            if (typeof removeOpListener === 'function') removeOpListener();
+            if (typeof removeProgressListener === 'function') removeProgressListener();
+            if (typeof removeCompleteListener === 'function') removeCompleteListener();
+        };
+    }, []);
+
+    const handleAddNovel = (url: string) => {
+        window.api.send('add-novel', url);
+        setView('library');
+    };
+
+    const handleRefreshNovel = (url: string) => {
+        window.api.send('refresh-novel', url);
+    };
+
+    const handleSelectNovel = (novel: any) => {
+        setSelectedNovel(novel);
+        setView('detail');
+    };
+
+    const handleDownload = (chapters: any) => {
+        if (!selectedNovel) return;
+        setIsDownloading(true);
+        window.api.send('start-download', {
+            url: selectedNovel.url,
+            chapters
+        });
+    };
+
+    const handleRead = (chapter: any) => {
+        setReadingChapter(chapter);
+        setView('reader');
+    };
+
+    const handleReadNext = () => {
+        if (!selectedNovel || !readingChapter) return;
+        const index = selectedNovel.chapters.findIndex((c: any) => c.num === readingChapter.num);
+        if (index !== -1 && index + 1 < selectedNovel.chapters.length) {
+            setReadingChapter(selectedNovel.chapters[index + 1]);
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans">
+            <div className="flex flex-1 overflow-hidden relative">
+                {/* Custom Title Bar Drag Area */}
+                <div className="absolute top-0 left-0 right-0 h-12 z-[9999] pointer-events-none" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}></div>
+                
+                <Sidebar activeTab={view} onTabChange={(tab: string) => setView(tab)} />
+
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-hidden pt-4">
+                        {view === 'library' && (
+                            <LibraryView
+                                library={library}
+                                onSelectNovel={handleSelectNovel}
+                                onAddNovel={() => setShowAddModal(true)}
+                            />
+                        )}
+
+                        {view === 'browse' && (
+                            <BrowseView 
+                                onSelectNovel={(novelUrl) => handleAddNovel(novelUrl)}
+                            />
+                        )}
+
+                        {view === 'detail' && selectedNovel && (
+                            <NovelDetail
+                                novel={library.find(n => n.url === selectedNovel.url) || selectedNovel} 
+                                onBack={() => setView('library')}
+                                onDownload={handleDownload}
+                                onRefresh={handleRefreshNovel}
+                                onRead={handleRead}
+                            />
+                        )}
+
+                        {view === 'settings' && (
+                            <div className="p-10">
+                                <h2 className="text-2xl font-bold mb-6">Settings</h2>
+                                <div className="bg-card border border-border rounded-xl p-6">
+                                    <p className="text-muted-foreground">App version: 1.0.0 (Revamped)</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <StatusBar logs={logs} isDownloading={isDownloading} progress={downloadProgress} />
+
+            {showAddModal && (
+                <AddNovelModal
+                    onClose={() => setShowAddModal(false)}
+                    onAdd={handleAddNovel}
+                />
+            )}
+
+            {view === 'reader' && readingChapter && (
+                <Reader
+                    novelUrl={selectedNovel.url}
+                    chapter={readingChapter}
+                    onClose={() => setView('detail')}
+                    onReadNext={handleReadNext}
+                />
+            )}
+        </div>
+    );
+}
+
+export default App;
