@@ -2,7 +2,7 @@
 (function preinit() {
     const { Blob } = require('buffer');
     if (typeof global.Blob === 'undefined') global.Blob = Blob;
-    
+
     if (typeof global.File === 'undefined') {
         global.File = class File extends global.Blob {
             constructor(parts, filename, options = {}) {
@@ -81,11 +81,13 @@ function updateDownloadStatus(url, chapterNum, path) {
 }
 
 let mainWindow;
+const appIconPath = path.join(__dirname, '../build/icon.png');
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1200, 
+        width: 1200,
         height: 800,
+        icon: process.platform === 'darwin' ? undefined : appIconPath,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -113,6 +115,10 @@ function createWindow() {
 let pluginCacheDir = null;
 
 app.whenReady().then(async () => {
+    if (process.platform === 'darwin' && fs.existsSync(appIconPath)) {
+        app.dock.setIcon(appIconPath);
+    }
+
     pluginCacheDir = path.join(app.getPath('userData'), 'plugins-cache');
     try {
         await pluginManager.init({ cacheDir: pluginCacheDir });
@@ -428,7 +434,7 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
                     const transparentPixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
                     fs.writeFileSync(fallbackPath, transparentPixel);
                     coverPath = fallbackPath;
-                } catch (e) {}
+                } catch (e) { }
             }
 
             const epubMetadata = {
@@ -463,15 +469,15 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
                 // Use xmlMode to ensure tags like <br> are self-closed as <br/>
                 const $ = cheerio.load(content, { xml: true }, false);
                 const xhtmlContent = $.xml();
-                
+
                 epub.addSection(chapter.title, `<h1>${chapter.title}</h1>${xhtmlContent}`);
             }
 
             await epub.writeEPUB(path.dirname(filePath), path.basename(filePath, '.epub'));
-            
+
             // Cleanup temp cover
             if (coverPath && fs.existsSync(coverPath)) {
-                try { fs.unlinkSync(coverPath); } catch (e) {}
+                try { fs.unlinkSync(coverPath); } catch (e) { }
             }
         } else if (format === 'pdf') {
             const doc = new jsPDF();
@@ -490,12 +496,12 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
                         const ratio = imgProps.width / imgProps.height;
                         let imgWidth = contentWidth;
                         let imgHeight = contentWidth / ratio;
-                        
+
                         if (imgHeight > (pageHeight - (margin * 2))) {
                             imgHeight = pageHeight - (margin * 2);
                             imgWidth = imgHeight * ratio;
                         }
-                        
+
                         const x = (pageWidth - imgWidth) / 2;
                         const y = (pageHeight - imgHeight) / 2;
 
@@ -511,7 +517,7 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
             doc.setFontSize(24);
             const titleLines = doc.splitTextToSize(novel.title, contentWidth);
             doc.text(titleLines, margin, 40);
-            
+
             doc.setFontSize(14);
             doc.text(`Author: ${novel.metadata?.author || 'Unknown'}`, margin, 60 + (titleLines.length * 10));
             doc.text(`Source: ${novel.provider}`, margin, 70 + (titleLines.length * 10));
@@ -526,7 +532,7 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
             for (const chapter of sortedChapters) {
                 const downloadInfo = novel.downloads[chapter.num];
                 if (!downloadInfo) continue;
-                
+
                 doc.addPage();
                 doc.setFontSize(18);
                 const chapTitleLines = doc.splitTextToSize(chapter.title, contentWidth);
@@ -547,28 +553,28 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
                 }
 
                 const lines = doc.splitTextToSize(text, contentWidth);
-                
+
                 let y = 40 + (chapTitleLines.length * 10);
                 let lastLineEmpty = false;
-                
+
                 for (const line of lines) {
                     const isLineEmpty = line.trim().length === 0;
-                    
+
                     // Collapse consecutive empty lines
                     if (isLineEmpty && lastLineEmpty) continue;
-                    
+
                     if (y > 280) {
                         doc.addPage();
                         y = 20;
                     }
-                    
+
                     if (line.trim().length > 0) {
                         doc.text(line, margin, y);
                         y += 6;
                         lastLineEmpty = false;
                     } else {
                         // Paragraph break
-                        y += 4; 
+                        y += 4;
                         lastLineEmpty = true;
                     }
                 }
