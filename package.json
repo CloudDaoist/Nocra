@@ -25,7 +25,7 @@
     "webtoon",
     "novel"
   ],
-  "author": "Antigravity",
+  "author": "CloudDaoist <daoist.quest@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
