@@ -5,6 +5,11 @@
   "engines": {
     "node": ">=20.18.1"
   },
+  "overrides": {
+    "xvfb": {
+      "sleep": "npm:noop-package@1.0.0"
+    }
+  },
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"cross-env BROWSER=none npm run react:dev\" \"npm run electron:dev\"",
@@ -68,5 +73,44 @@
     "typescript": "^5.9.3",
     "vite": "^5.0.0",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.nocra.app",
+    "productName": "Nocra",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "CloudDaoist",
+      "repo": "Nocra"
+    }
   }
 }
