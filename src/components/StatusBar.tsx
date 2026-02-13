@@ -1,11 +1,11 @@
 import React from 'react';
 
-const StatusBar = ({ logs, isDownloading, progress }) => {
+const StatusBar = ({ logs, isDownloading, progress, onClick }: { logs: string[], isDownloading: boolean, progress: any, onClick?: () => void }) => {
     // Get last non-debug log
     const lastMessage = logs.length > 0 ? logs[logs.length - 1] : 'Ready';
 
     return (
-        <div style={styles.container}>
+        <div style={styles.container} onClick={onClick}>
             <div style={styles.left}>
                 {isDownloading && (
                     <div style={styles.spinner}></div>
@@ -33,6 +33,8 @@ const styles = {
         fontSize: '11px',
         color: 'white',
         fontWeight: '500',
+        cursor: 'pointer',
+        userSelect: 'none' as 'none',
     },
     left: {
         display: 'flex',
@@ -52,6 +54,9 @@ const styles = {
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         maxWidth: '400px',
+    },
+    right: {
+        marginLeft: 'auto',
     }
 };
 

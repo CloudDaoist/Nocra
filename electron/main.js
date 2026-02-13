@@ -161,10 +161,23 @@ ipcMain.on('get-plugins', (event) => {
 });
 
 ipcMain.on('get-app-info', (event) => {
+    const downloadsPath = path.join(app.getPath('userData'), 'downloads');
+    if (!fs.existsSync(downloadsPath)) {
+        fs.mkdirSync(downloadsPath, { recursive: true });
+    }
     event.reply('app-info', {
         version: app.getVersion(),
-        name: app.getName()
+        name: app.getName(),
+        downloadsPath: downloadsPath
     });
+});
+
+ipcMain.on('open-downloads-folder', () => {
+    const downloadsPath = path.join(app.getPath('userData'), 'downloads');
+    if (!fs.existsSync(downloadsPath)) {
+        fs.mkdirSync(downloadsPath, { recursive: true });
+    }
+    require('electron').shell.openPath(downloadsPath);
 });
 
 ipcMain.on('search-novels', async (event, { query, pluginId }) => {
@@ -396,6 +409,50 @@ ipcMain.on('read-chapter', async (event, { novelUrl, chapterNum }) => {
         event.reply('error', 'Content file not found.');
     } catch (e) {
         event.reply('error', `Read error: ${e.message}`);
+    }
+});
+
+ipcMain.on('export-library', async (event) => {
+    const { filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Library',
+        defaultPath: 'nocra-library.json',
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+
+    if (filePath) {
+        try {
+            const library = getLibrary();
+            fs.writeFileSync(filePath, JSON.stringify(library, null, 2));
+            event.reply('log-update', `Library exported to ${filePath}`);
+            event.reply('operation-success', { type: 'export-library' });
+        } catch (e) {
+            event.reply('error', `Failed to export library: ${e.message}`);
+        }
+    }
+});
+
+ipcMain.on('import-library', async (event) => {
+    const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+        title: 'Import Library',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+    });
+
+    if (filePaths && filePaths.length > 0) {
+        try {
+            const content = fs.readFileSync(filePaths[0], 'utf-8');
+            const library = JSON.parse(content);
+            if (Array.isArray(library)) {
+                store.set('library', library);
+                event.reply('library-data', library);
+                event.reply('log-update', `Library imported from ${filePaths[0]}`);
+                event.reply('operation-success', { type: 'import-library' });
+            } else {
+                throw new Error('Invalid library format');
+            }
+        } catch (e) {
+            event.reply('error', `Failed to import library: ${e.message}`);
+        }
     }
 });
 

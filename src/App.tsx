@@ -7,6 +7,7 @@ import Reader from './components/Reader';
 import AddNovelModal from './components/AddNovelModal';
 import StatusBar from './components/StatusBar';
 import SettingsView from './components/SettingsView';
+import LogView from './components/LogView';
 
 function App() {
     // Navigation
@@ -23,6 +24,7 @@ function App() {
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState<any>(null);
     const [appVersion, setAppVersion] = useState<string>('');
+    const [showLogView, setShowLogView] = useState(false);
 
     useEffect(() => {
         // Listeners
@@ -168,7 +170,19 @@ function App() {
                 </div>
             </div>
 
-            <StatusBar logs={logs} isDownloading={isDownloading} progress={downloadProgress} />
+            {showLogView && (
+                <LogView
+                    logs={logs}
+                    onClose={() => setShowLogView(false)}
+                />
+            )}
+
+            <StatusBar
+                logs={logs}
+                isDownloading={isDownloading}
+                progress={downloadProgress}
+                onClick={() => setShowLogView(true)}
+            />
 
             {showAddModal && (
                 <AddNovelModal

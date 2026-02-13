@@ -37,7 +37,7 @@ class PluginManager {
     this.plugins.set("booktoki", {
       meta: {
         id: "booktoki",
-        name: "Booktoki (High Security)",
+        name: "Booktoki",
         site: "https://booktoki469.com",
         lang: "korean",
         version: "1.1.0",
@@ -45,7 +45,7 @@ class PluginManager {
       },
       instance: {
         id: "booktoki",
-        name: "Booktoki (High Security)",
+        name: "Booktoki",
         site: "https://booktoki469.com",
         version: "1.1.0",
         isLegacy: true,

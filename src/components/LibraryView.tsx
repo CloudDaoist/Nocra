@@ -21,9 +21,16 @@ interface LibraryViewProps {
 
 const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAddNovel, onDeleteNovel }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+        return (localStorage.getItem('library-view-mode') as 'grid' | 'list') || 'grid';
+    });
 
-    const filteredLibrary = library.filter(n => 
+    const handleViewModeChange = (mode: 'grid' | 'list') => {
+        setViewMode(mode);
+        localStorage.setItem('library-view-mode', mode);
+    };
+
+    const filteredLibrary = library.filter(n =>
         (n.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
         (n.provider?.toLowerCase() || "").includes(searchQuery.toLowerCase())
     );
@@ -48,14 +55,14 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
 
                     <div className="flex items-center gap-3">
                         <div className="bg-muted p-1 rounded-lg flex gap-1">
-                            <button 
-                                onClick={() => setViewMode('grid')}
+                            <button
+                                onClick={() => handleViewModeChange('grid')}
                                 className={cn("p-1.5 rounded-md transition-all", viewMode === 'grid' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}
                             >
                                 <LayoutGrid size={16} />
                             </button>
-                            <button 
-                                onClick={() => setViewMode('list')}
+                            <button
+                                onClick={() => handleViewModeChange('list')}
                                 className={cn("p-1.5 rounded-md transition-all", viewMode === 'list' ? "bg-background shadow-sm text-primary" : "text-muted-foreground hover:text-foreground")}
                             >
                                 <List size={16} />
@@ -89,17 +96,17 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                     {viewMode === 'grid' ? (
                         <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-6">
                             {filteredLibrary.map((novel, i) => (
-                                <div 
-                                    key={i} 
+                                <div
+                                    key={i}
                                     className="flex flex-col gap-2 group cursor-pointer"
                                     onClick={() => onSelectNovel(novel)}
                                 >
                                     <div className="aspect-[3/4.5] rounded-xl bg-muted overflow-hidden relative shadow-sm ring-1 ring-border/20 group-hover:ring-primary/30 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-1">
                                         {novel.cover ? (
-                                            <img 
-                                                src={novel.cover} 
-                                                alt={novel.title} 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                            <img
+                                                src={novel.cover}
+                                                alt={novel.title}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-muted-foreground/10 uppercase">
@@ -107,7 +114,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                                             </div>
                                         )}
                                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button 
+                                            <button
                                                 onClick={(e) => handleDelete(e, novel)}
                                                 className="bg-black/40 backdrop-blur-md p-1.5 rounded-md text-white hover:bg-destructive/80 transition-colors"
                                             >
@@ -136,7 +143,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                     ) : (
                         <div className="flex flex-col gap-2">
                             {filteredLibrary.map((novel, i) => (
-                                <div 
+                                <div
                                     key={i}
                                     className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border transition-all group cursor-pointer"
                                     onClick={() => onSelectNovel(novel)}
@@ -148,9 +155,9 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
                                         <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{novel.title || "Unknown Title"}</h3>
                                         <p className="text-xs text-muted-foreground uppercase mt-0.5">{novel.provider || "Unknown"} • {(novel.chapters || []).length} Chapters</p>
                                     </div>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
                                         className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                         onClick={(e) => handleDelete(e, novel)}
                                     >

@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
     send: (channel, data) => {
-        let validChannels = ['toMain', 'start-download', 'stop-download', 'fetch-info', 'add-novel', 'refresh-novel', 'remove-novel', 'get-library', 'read-chapter', 'get-plugins', 'search-novels', 'popular-novels', 'export-novel', 'get-app-info'];
+        let validChannels = ['toMain', 'start-download', 'stop-download', 'fetch-info', 'add-novel', 'refresh-novel', 'remove-novel', 'get-library', 'read-chapter', 'get-plugins', 'search-novels', 'popular-novels', 'export-novel', 'get-app-info', 'open-downloads-folder', 'export-library', 'import-library'];
         if (validChannels.includes(channel)) {
             ipcRenderer.send(channel, data);
         }
