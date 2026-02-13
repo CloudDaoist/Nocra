@@ -33,14 +33,14 @@ const isUrlAbsolute = (url) => {
 // Storage Mock
 const storage = {
     get: (key) => '',
-    set: (key, value) => {},
-    remove: (key) => {},
+    set: (key, value) => { },
+    remove: (key) => { },
 };
 
 const localStorage = {
     get: (key) => ({}),
-    set: (key, value) => {},
-    remove: (key) => {},
+    set: (key, value) => { },
+    remove: (key) => { },
 };
 
 // Fetch API implementation for Node
@@ -54,16 +54,46 @@ async function fetchApi(url, init = {}) {
     }
 
     console.log(`[Plugin Fetch] ${cleanUrl}`);
-    
-    const response = await fetch(cleanUrl, {
-        ...init,
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            ...init.headers,
+
+    try {
+        const response = await fetch(cleanUrl, {
+            ...init,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                ...init.headers,
+            }
+        });
+
+        // Check for bot protection or failure
+        if ((response.status === 403 || response.status === 503) && global.nocraPluginFetch) {
+            console.log(`[Plugin Fetch] Fallback to Browser for ${cleanUrl} (Status: ${response.status})`);
+            const browserRes = await global.nocraPluginFetch(cleanUrl, init);
+
+            // Convert back to standard Response-like object
+            const bodyBuffer = Buffer.from(browserRes.bodyBase64, 'base64');
+            return new Response(bodyBuffer, {
+                status: browserRes.status,
+                statusText: browserRes.statusText,
+                headers: browserRes.headers
+            });
         }
-    });
-    return response;
+
+        return response;
+    } catch (e) {
+        if (global.nocraPluginFetch) {
+            console.log(`[Plugin Fetch] Network error, fallback to Browser for ${cleanUrl}: ${e.message}`);
+            const browserRes = await global.nocraPluginFetch(cleanUrl, init);
+            // Convert back to standard Response-like object
+            const bodyBuffer = Buffer.from(browserRes.bodyBase64, 'base64');
+            return new Response(bodyBuffer, {
+                status: browserRes.status,
+                statusText: browserRes.statusText,
+                headers: browserRes.headers
+            });
+        }
+        throw e;
+    }
 }
 
 const fetchText = async (url, init) => {

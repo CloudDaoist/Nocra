@@ -2,6 +2,21 @@ const { connect } = require("puppeteer-real-browser");
 const fs = require('fs');
 const path = require('path');
 const pluginManager = require('./plugin-system/manager');
+const iconv = require('iconv-lite');
+
+// Load native plugins
+const nocraPlugins = new Map();
+const pluginsDir = path.join(__dirname, 'nocra-plugins');
+if (fs.existsSync(pluginsDir)) {
+    fs.readdirSync(pluginsDir).forEach(file => {
+        if (file.endsWith('.js')) {
+            const plugin = require(path.join(pluginsDir, file));
+            if (plugin.id) {
+                nocraPlugins.set(plugin.id, plugin);
+            }
+        }
+    });
+}
 
 class NocraScraper {
     constructor(mainWindow) {
@@ -53,10 +68,17 @@ class NocraScraper {
     }
 
     identifySite(url) {
-        // Legacy Support: Booktoki
+        // Nocra Plugin Support: Booktoki
         if (url.match(/^https:\/\/booktoki[0-9]+.com\/novel\/[0-9]+/)) {
             const domain = url.match(/^https:\/\/booktoki[0-9]+.com/)[0];
-            return { site: 'booktoki', title: 'Booktoki', domain, driver: 'legacy', pluginId: 'booktoki' };
+            return { site: 'booktoki', title: 'Booktoki', domain, driver: 'nocra', pluginId: 'booktoki' };
+        }
+
+        // Nocra Plugin Support: 69Shuba
+        if (url.match(/69shuba|69shu|69xinshu/)) {
+            const domainMatch = url.match(/https:\/\/(www\.)?(69shuba\.com|69shu\.com|69xinshu\.com|69shu\.pro|69shuba\.pro)/);
+            const domain = domainMatch ? domainMatch[0] : 'https://www.69shuba.com';
+            return { site: '69shuba', title: '69Shuba', domain, driver: 'nocra', pluginId: '69shuba' };
         }
 
         // Plugin Support
@@ -69,9 +91,11 @@ class NocraScraper {
     }
 
     async popularNovels(pluginId, page = 1) {
-        if (pluginId === 'booktoki') {
-            return this.popularNovelsLegacy(page);
+        const nativePlugin = nocraPlugins.get(pluginId);
+        if (nativePlugin) {
+            return nativePlugin.popularNovels(this, page);
         }
+
         const plugin = await pluginManager.getPluginInstance(pluginId);
         if (!plugin) return [];
 
@@ -85,9 +109,11 @@ class NocraScraper {
     }
 
     async searchNovels(pluginId, query, page = 1) {
-        if (pluginId === 'booktoki') {
-            return this.searchNovelsLegacy(query, page);
+        const nativePlugin = nocraPlugins.get(pluginId);
+        if (nativePlugin) {
+            return nativePlugin.searchNovels(this, query, page);
         }
+
         const plugin = await pluginManager.getPluginInstance(pluginId);
         if (!plugin) return [];
         const novels = await plugin.searchNovels(query, page);
@@ -104,90 +130,7 @@ class NocraScraper {
         return cover;
     }
 
-    async popularNovelsLegacy(page = 1) {
-        if (!this.browser) await this.startBrowser();
-        const url = `https://booktoki469.com/novel?book=&yoil=&jaum=&tag=&sst=as_update&sod=desc&stx=&page=${page}`;
-        return this.parseListLegacy(url);
-    }
 
-    async searchNovelsLegacy(query, page = 1) {
-        if (!this.browser) await this.startBrowser();
-        const url = `https://booktoki469.com/novel?book=&yoil=&jaum=&tag=&sst=as_update&sod=desc&stx=${encodeURIComponent(query)}&page=${page}`;
-        return this.parseListLegacy(url);
-    }
-
-    async parseListLegacy(url) {
-        if (!this.browser) await this.startBrowser();
-        this.log(`Navigating to list: ${url}`);
-
-        try {
-            await this.page.goto(url);
-
-            // Wait for Cloudflare challenge
-            let koreanTitle = '북토끼';
-            let challengeCounter = 0;
-            while (!(await this.page.title()).includes(koreanTitle)) {
-                if (this.stopFlag || challengeCounter > 100) break;
-                await this.sleep(200);
-                challengeCounter++;
-            }
-
-            this.log("List page reached, waiting for container...");
-
-            // Wait for list container
-            try {
-                await this.page.waitForSelector('#webtoon-list-all, .list-container', { timeout: 30000 });
-            } catch (e) {
-                this.log("Timeout waiting for list container.");
-            }
-
-            const novels = await this.page.evaluate(() => {
-                const items = document.querySelectorAll('#webtoon-list-all > li');
-                return Array.from(items).map(li => {
-                    const anchor = li.querySelector('a');
-                    const img = li.querySelector('img');
-                    const titleSpan = li.querySelector('.title');
-
-                    return {
-                        name: titleSpan ? titleSpan.innerText.trim() : (li.getAttribute('date-title') || li.innerText.split('\n')[0] || "Unknown"),
-                        path: anchor ? anchor.getAttribute('href') : "",
-                        cover: img ? (img.getAttribute('src') || img.getAttribute('data-src')) : ""
-                    };
-                });
-            });
-
-            this.log(`Extracted ${novels.length} entries from list.`);
-
-            // Ensure covers are absolute URLs and De-duplicate by path
-            const currentUrl = this.page.url();
-            const domainMatch = currentUrl.match(/^https:\/\/booktoki[0-9]+.com/);
-            const domain = domainMatch ? domainMatch[0] : "https://booktoki469.com";
-
-            const seenPaths = new Set();
-            const uniqueNovels = [];
-
-            for (const n of novels) {
-                if (!n.path) continue;
-
-                let absolutePath = n.path.startsWith('http') ? n.path : domain + (n.path.startsWith('/') ? n.path : '/' + n.path);
-
-                // Filter and de-duplicate
-                if ((absolutePath.includes('/novel/') || absolutePath.match(/\/novel\/[0-9]+/)) && !seenPaths.has(absolutePath)) {
-                    seenPaths.add(absolutePath);
-                    uniqueNovels.push({
-                        ...n,
-                        cover: n.cover && !n.cover.startsWith('http') ? (n.cover.startsWith('//') ? 'https:' + n.cover : domain + (n.cover.startsWith('/') ? n.cover : '/' + n.cover)) : n.cover,
-                        path: absolutePath
-                    });
-                }
-            }
-
-            return uniqueNovels;
-        } catch (e) {
-            this.log(`Error parsing list: ${e.message}`);
-            return [];
-        }
-    }
 
     async fetchChapterList(url) {
         this.stopFlag = false;
@@ -198,98 +141,19 @@ class NocraScraper {
             return null;
         }
 
-        if (siteInfo.driver === 'legacy') {
-            return this.fetchChapterListLegacy(url, siteInfo);
+        if (siteInfo.driver === 'nocra') {
+            const nativePlugin = nocraPlugins.get(siteInfo.pluginId);
+            if (nativePlugin) {
+                return nativePlugin.fetchChapterList(this, url, siteInfo);
+            }
+            this.log(`Error: Native plugin ${siteInfo.pluginId} not found.`);
+            return null;
         } else {
             return this.fetchChapterListPlugin(url, siteInfo);
         }
     }
 
-    async fetchChapterListLegacy(url, siteInfo) {
-        if (!this.browser) await this.startBrowser();
 
-        this.log(`Navigating to ${url}...`);
-        await Promise.all([this.page.waitForNavigation().catch(() => { }), this.page.goto(url)]);
-
-        this.log("Waiting for Cloudflare challenge...");
-        let koreanTitle = '북토끼';
-
-        try {
-            while (!(await this.page.title()).includes(koreanTitle)) {
-                if (this.stopFlag) return;
-                await this.sleep(100);
-            }
-        } catch (e) { }
-
-        this.log("Site loaded. Fetching chapters...");
-
-        let chapters = [];
-        let contentTitle = '';
-        let metadata = {
-            author: 'Unknown',
-            cover: '',
-            summary: '',
-            status: 'Unknown'
-        };
-
-        // Extract Metadata
-        try {
-            metadata = await this.page.evaluate(() => {
-                const authorEl = document.querySelector('.fa-user')?.parentElement?.innerText?.trim() || 'Unknown';
-                const coverEl = document.querySelector('.view-img img')?.src || document.querySelector('meta[property="og:image"]')?.content || '';
-                const summaryEl = document.querySelector('.view-content')?.innerText?.trim() || '';
-                const title = document.querySelector('.page-title .page-desc')?.innerText?.trim() || '';
-
-                // Status often in data-weekday or similar on list, but on page might be different
-                // For now use a placeholder or try to find it
-                return { author: authorEl.replace('작업자', '').trim(), cover: coverEl, summary: summaryEl, title };
-            });
-            contentTitle = metadata.title || "Booktoki Novel";
-        } catch (e) {
-            this.log("Failed to extract metadata.");
-            contentTitle = "Booktoki Novel";
-        }
-
-        while (true) {
-            if (this.stopFlag) break;
-
-            try {
-                await this.page.waitForSelector('.list-body', { timeout: 40000 });
-            } catch (e) {
-                this.log("Timeout waiting for list body.");
-                break;
-            }
-
-            await this.sleep(1000);
-
-            const pageChapters = await this.page.evaluate(() => {
-                let list = Array.from(document.querySelector('.list-body').querySelectorAll('li'));
-                return list.map(li => ({
-                    num: li.querySelector('.wr-num').innerText.trim().padStart(4, '0'),
-                    title: li.querySelector('a').innerHTML.replace(/<span[\s\S]*?\/span>/g, '').trim(),
-                    url: li.querySelector('a').href
-                }));
-            });
-
-            chapters = chapters.concat(pageChapters);
-
-            if (!contentTitle) {
-                contentTitle = await this.page.evaluate(() => document.querySelector('.page-title .page-desc').innerText);
-            }
-
-            this.log(`Fetched ${chapters.length} chapters so far...`);
-
-            const nextButton = await this.page.$('ul.pagination li[class="active"] ~ li:not([class="disabled"]) a');
-            if (nextButton) {
-                await Promise.all([this.page.waitForNavigation(), nextButton.click()]);
-            } else {
-                break;
-            }
-        }
-
-        this.log(`Found total ${chapters.length} chapters.`);
-        return { chapters: chapters.reverse(), contentTitle, siteInfo, metadata };
-    }
 
     async fetchChapterListPlugin(url, siteInfo) {
         const plugin = await pluginManager.getPluginInstance(siteInfo.pluginId);
@@ -353,68 +217,18 @@ class NocraScraper {
         if (this.stopFlag) return;
         this.log(`Downloading: ${chapter.num} - ${chapter.title}`);
 
-        if (siteInfo.driver === 'legacy') {
-            return this.downloadChapterLegacy(chapter, saveDir, siteInfo, contentTitle);
+        if (siteInfo.driver === 'nocra') {
+            const nativePlugin = nocraPlugins.get(siteInfo.pluginId);
+            if (nativePlugin) {
+                return nativePlugin.downloadChapter(this, chapter, saveDir, siteInfo, contentTitle);
+            }
+            throw new Error(`Native plugin ${siteInfo.pluginId} not found.`);
         } else {
             return this.downloadChapterPlugin(chapter, saveDir, siteInfo, contentTitle);
         }
     }
 
-    async downloadChapterLegacy(chapter, saveDir, siteInfo, contentTitle) {
-        if (!this.browser) await this.startBrowser();
-        try {
-            this.log(`Navigating to ${chapter.url}...`);
-            await Promise.all([this.page.goto(chapter.url), this.page.waitForNavigation().catch(() => { })]);
 
-            // Enhanced Cloudflare waiting logic
-            const cfTimeout = 60000; // 60 seconds
-            const startTime = Date.now();
-
-            let foundContent = false;
-            while (Date.now() - startTime < cfTimeout) {
-                if (this.stopFlag) break;
-
-                try {
-                    // Quick check for content
-                    const contentEl = await this.page.$('#novel_content');
-                    if (contentEl) {
-                        foundContent = true;
-                        break;
-                    }
-
-                    // Check if we are stuck on Cloudflare
-                    const title = await this.page.title();
-                    if (title.includes('Just a moment') || title.includes('Cloudflare')) {
-                        this.log(`Waiting for Cloudflare challenge... (${Math.round((cfTimeout - (Date.now() - startTime)) / 1000)}s remaining)`);
-                    }
-
-                    await this.sleep(2000);
-                } catch (e) {
-                    await this.sleep(1000);
-                }
-            }
-
-            if (!foundContent) {
-                throw new Error("Content selector #novel_content not found after waiting (Possible Cloudflare timeout).");
-            }
-
-            const content = await this.page.evaluate(() => {
-                const el = document.querySelector('#novel_content');
-                return el ? el.innerText : null;
-            });
-
-            if (!content) throw new Error("Content is empty.");
-
-            const safeTitle = contentTitle.replace(/[\/\\:*?"<>|]/g, "");
-            const chapterDir = path.join(saveDir, safeTitle);
-
-            if (!fs.existsSync(chapterDir)) fs.mkdirSync(chapterDir, { recursive: true });
-            fs.writeFileSync(path.join(chapterDir, `Chapter ${chapter.num}.txt`), content);
-        } catch (e) {
-            this.log(`Error downloading chapter ${chapter.num}: ${e.message}`);
-            throw e; // Rethrow to prevent main.js from marking as success
-        }
-    }
 
     async downloadChapterPlugin(chapter, saveDir, siteInfo, contentTitle) {
         const plugin = await pluginManager.getPluginInstance(siteInfo.pluginId);
@@ -436,6 +250,98 @@ class NocraScraper {
         } catch (e) {
             this.log(`Plugin download error: ${e.message}`);
             throw e; // Rethrow to prevent main.js from marking as success
+        }
+    }
+
+
+
+    async fetchInBrowser(url, options = {}) {
+        if (!this.browser) await this.startBrowser();
+
+        const method = options.method ? options.method.toUpperCase() : 'GET';
+        this.log(`Fetch in browser (${method}): ${url}`);
+
+        if (method === 'GET') {
+            try {
+                // For GET requests, we use page.goto which is more robust against Cloudflare
+                // and handles full page loads (including eventual JS rendering if we waited)
+                const response = await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+                // Cloudflare check
+                const checkCloudflare = async () => {
+                    const title = await this.page.title();
+                    if (title.includes('Just a moment') || title.includes('Cloudflare')) {
+                        this.log("Cloudflare detected. Waiting...");
+                        await this.sleep(5000);
+                        return checkCloudflare(); // Retry
+                    }
+                };
+                await checkCloudflare();
+
+                // Get content
+                // Note: response.text() is from the network response. 
+                // page.content() is the DOM. Plugins usually expect HTML.
+                // Let's use page.content() to be safe against JS-rendered content,
+                // BUT bridge.js expects a response body.
+                // Usually fetch returns the wire response. 
+                // Let's return page.content() as it's what the user sees.
+                const content = await this.page.content();
+                const base64 = Buffer.from(content).toString('base64');
+
+                return {
+                    ok: response ? response.ok() : true,
+                    status: response ? response.status() : 200,
+                    statusText: response ? response.statusText() : 'OK',
+                    headers: response ? response.headers() : {},
+                    bodyBase64: base64,
+                    url: this.page.url()
+                };
+            } catch (e) {
+                this.log(`Navigation error: ${e.message}`);
+                throw e;
+            }
+        } else {
+            // POST or other methods - use fetch inside page
+            try {
+                const targetUrlObj = new URL(url);
+                const targetOrigin = targetUrlObj.origin;
+                const currentUrl = this.page.url();
+
+                if (!currentUrl.startsWith(targetOrigin)) {
+                    this.log(`Navigating to ${targetOrigin} to establish session...`);
+                    await this.page.goto(targetOrigin, { waitUntil: 'domcontentloaded' });
+                }
+
+                const result = await this.page.evaluate(async (url, options) => {
+                    const fetchOptions = options || {};
+                    const response = await fetch(url, fetchOptions);
+
+                    const buffer = await response.arrayBuffer();
+                    const base64 = btoa(
+                        new Uint8Array(buffer)
+                            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                    );
+
+                    const headers = {};
+                    for (const [key, value] of response.headers) {
+                        headers[key] = value;
+                    }
+
+                    return {
+                        ok: response.ok,
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: headers,
+                        bodyBase64: base64,
+                        url: response.url
+                    };
+                }, url, options);
+
+                return result;
+            } catch (e) {
+                console.error("Browser fetch error:", e);
+                throw e;
+            }
         }
     }
 }

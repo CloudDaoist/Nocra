@@ -30,10 +30,10 @@ class PluginManager {
     this.cachePluginsDir = null;
     this.indexUrl = INDEX_URL;
     this.initPromise = null;
-    this.addLegacyPlugins();
+    this.addNocraPlugins();
   }
 
-  addLegacyPlugins() {
+  addNocraPlugins() {
     this.plugins.set("booktoki", {
       meta: {
         id: "booktoki",
@@ -41,16 +41,35 @@ class PluginManager {
         site: "https://booktoki469.com",
         lang: "korean",
         version: "1.1.0",
-        isLegacy: true,
+        isNocra: true,
       },
       instance: {
         id: "booktoki",
         name: "Booktoki",
         site: "https://booktoki469.com",
         version: "1.1.0",
-        isLegacy: true,
+        isNocra: true,
       },
-      isLegacy: true,
+      isNocra: true,
+    });
+
+    this.plugins.set("69shuba", {
+      meta: {
+        id: "69shuba",
+        name: "69Shuba",
+        site: "https://www.69shuba.com",
+        lang: "chinese",
+        version: "1.0.0",
+        isNocra: true,
+      },
+      instance: {
+        id: "69shuba",
+        name: "69Shuba",
+        site: "https://www.69shuba.com",
+        version: "1.0.0",
+        isNocra: true,
+      },
+      isNocra: true,
     });
   }
 

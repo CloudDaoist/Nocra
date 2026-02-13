@@ -145,6 +145,11 @@ let mScraper = null;
 function getScraper() {
     if (!mScraper && mainWindow) {
         mScraper = new NocraScraper(mainWindow);
+
+        // Expose scraper fetch to plugins
+        global.nocraPluginFetch = async (url, options) => {
+            return mScraper.fetchInBrowser(url, options);
+        };
     }
     return mScraper;
 }
@@ -302,10 +307,10 @@ ipcMain.on('start-download', async (event, { url, chapters, options }) => {
     let concurrency = options?.concurrency || 1;
     const delay = options?.delay || 500;
 
-    if (siteInfo?.driver === 'legacy') {
-        concurrency = 1; // Legacy driver (Puppeteer shared page) cannot handle concurrency
+    if (siteInfo?.driver === 'nocra') {
+        concurrency = 1; // Nocra driver (Puppeteer shared page) cannot handle concurrency
         if (options?.concurrency > 1) {
-            event.reply('log-update', 'Note: Legacy site detected. Forcing concurrency to 1.');
+            event.reply('log-update', 'Note: Nocra site detected. Forcing concurrency to 1.');
         }
     }
 

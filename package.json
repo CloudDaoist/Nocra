@@ -46,6 +46,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^8.2.0",
     "htmlparser2": "^10.1.0",
+    "iconv-lite": "^0.7.2",
     "jiti": "^2.6.1",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
