@@ -160,6 +160,13 @@ ipcMain.on('get-plugins', (event) => {
     event.reply('plugins-list', plugins);
 });
 
+ipcMain.on('get-app-info', (event) => {
+    event.reply('app-info', {
+        version: app.getVersion(),
+        name: app.getName()
+    });
+});
+
 ipcMain.on('search-novels', async (event, { query, pluginId }) => {
     const scraper = getScraper();
     try {

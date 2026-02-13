@@ -8,7 +8,11 @@ interface SidebarProps {
   version?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, version }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  onTabChange,
+  version,
+}) => {
   const tabs = [
     { id: "library", label: "Library", icon: Book },
     { id: "browse", label: "Browse", icon: Compass },
@@ -18,9 +22,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, version }) =>
   return (
     <div className="w-64 bg-card/30 border-r border-border flex flex-col p-4 pt-14 shrink-0">
       <div className="flex items-center gap-3 px-4 mb-10">
-        <div className="w-10 h-10 flex items-center justify-center">
-          <img src="src/assets/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-        </div>
         <div className="text-xl font-bold text-foreground tracking-tight">
           Nocra
         </div>
@@ -41,7 +42,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, version }) =>
               )}
               onClick={() => onTabChange(tab.id)}
             >
-              <Icon size={18} className={cn("transition-transform group-hover:scale-110", isActive && "text-primary")} />
+              <Icon
+                size={18}
+                className={cn(
+                  "transition-transform group-hover:scale-110",
+                  isActive && "text-primary",
+                )}
+              />
               <span>{tab.label}</span>
               {isActive && (
                 <div className="absolute left-0 w-1 h-5 bg-primary rounded-r-full" />
@@ -53,14 +60,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, version }) =>
 
       <div className="mt-auto pt-6 border-t border-border/50">
         <div className="bg-muted/50 rounded-xl p-4 flex flex-col gap-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">Status</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
+            Status
+          </p>
           <div className="flex items-center gap-2 text-xs text-foreground font-medium">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             System Ready
           </div>
         </div>
         <div className="mt-4 text-[10px] text-muted-foreground text-center opacity-40">
-          v{version || '1.1.0'}
+          v{version || "1.1.0"}
         </div>
       </div>
     </div>
