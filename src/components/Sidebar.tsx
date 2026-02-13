@@ -1,13 +1,14 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Book, Compass, Settings, Zap } from "lucide-react";
+import { Book, Compass, Settings } from "lucide-react";
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  version?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, version }) => {
   const tabs = [
     { id: "library", label: "Library", icon: Book },
     { id: "browse", label: "Browse", icon: Compass },
@@ -17,8 +18,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   return (
     <div className="w-64 bg-card/30 border-r border-border flex flex-col p-4 pt-14 shrink-0">
       <div className="flex items-center gap-3 px-4 mb-10">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 text-primary-foreground">
-            <Zap size={18} fill="currentColor" />
+        <div className="w-10 h-10 flex items-center justify-center">
+          <img src="src/assets/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
         </div>
         <div className="text-xl font-bold text-foreground tracking-tight">
           Nocra
@@ -52,14 +53,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
 
       <div className="mt-auto pt-6 border-t border-border/50">
         <div className="bg-muted/50 rounded-xl p-4 flex flex-col gap-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">Status</p>
-            <div className="flex items-center gap-2 text-xs text-foreground font-medium">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                System Ready
-            </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">Status</p>
+          <div className="flex items-center gap-2 text-xs text-foreground font-medium">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            System Ready
+          </div>
         </div>
         <div className="mt-4 text-[10px] text-muted-foreground text-center opacity-40">
-          BUILD 2026.02.03 • v1.1.0
+          v{version || '1.1.0'}
         </div>
       </div>
     </div>

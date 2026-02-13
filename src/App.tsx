@@ -6,6 +6,7 @@ import NovelDetail from './components/NovelDetail';
 import Reader from './components/Reader';
 import AddNovelModal from './components/AddNovelModal';
 import StatusBar from './components/StatusBar';
+import SettingsView from './components/SettingsView';
 
 function App() {
     // Navigation
@@ -21,11 +22,13 @@ function App() {
     const [logs, setLogs] = useState<string[]>([]);
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState<any>(null);
+    const [appVersion, setAppVersion] = useState<string>('');
 
     useEffect(() => {
         // Listeners
         const removeLibListener = window.api.receive('library-data', (data) => setLibrary(data));
-        const removeLogListener = window.api.receive('log-update', (msg: string) => setLogs(prev => [...prev, msg].slice(-20))); 
+        const removeLogListener = window.api.receive('log-update', (msg: string) => setLogs(prev => [...prev, msg].slice(-20)));
+        const removeInfoListener = window.api.receive('app-info', (info: any) => setAppVersion(info.version));
 
         const removeOpListener = window.api.receive('operation-success', ({ type }) => {
             if (type === 'add-novel') {
@@ -49,10 +52,12 @@ function App() {
 
         // Initial fetch
         window.api.send('get-library');
+        window.api.send('get-app-info');
 
         return () => {
             if (typeof removeLibListener === 'function') removeLibListener();
             if (typeof removeLogListener === 'function') removeLogListener();
+            if (typeof removeInfoListener === 'function') removeInfoListener();
             if (typeof removeOpListener === 'function') removeOpListener();
             if (typeof removeProgressListener === 'function') removeProgressListener();
             if (typeof removeCompleteListener === 'function') removeCompleteListener();
@@ -84,10 +89,20 @@ function App() {
 
     const handleDownload = (chapters: any) => {
         if (!selectedNovel) return;
+
+        let settings = { concurrency: 1, delay: 500 };
+        try {
+            const saved = localStorage.getItem('download-settings');
+            if (saved) settings = { ...settings, ...JSON.parse(saved) };
+        } catch (e) {
+            console.error("Failed to load download settings", e);
+        }
+
         setIsDownloading(true);
         window.api.send('start-download', {
             url: selectedNovel.url,
-            chapters
+            chapters,
+            options: settings
         });
     };
 
@@ -109,8 +124,8 @@ function App() {
             <div className="flex flex-1 overflow-hidden relative">
                 {/* Custom Title Bar Drag Area */}
                 <div className="absolute top-0 left-0 right-0 h-12 z-[9999] pointer-events-none" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}></div>
-                
-                <Sidebar activeTab={view} onTabChange={(tab: string) => setView(tab)} />
+
+                <Sidebar activeTab={view} onTabChange={(tab: string) => setView(tab)} version={appVersion} />
 
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 overflow-hidden pt-4">
@@ -124,14 +139,14 @@ function App() {
                         )}
 
                         {view === 'browse' && (
-                            <BrowseView 
+                            <BrowseView
                                 onSelectNovel={(novelUrl) => handleAddNovel(novelUrl)}
                             />
                         )}
 
                         {view === 'detail' && selectedNovel && (
                             <NovelDetail
-                                novel={library.find(n => n.url === selectedNovel.url) || selectedNovel} 
+                                novel={library.find(n => n.url === selectedNovel.url) || selectedNovel}
                                 onBack={() => setView('library')}
                                 onDownload={handleDownload}
                                 onRefresh={handleRefreshNovel}
@@ -141,11 +156,12 @@ function App() {
                         )}
 
                         {view === 'settings' && (
-                            <div className="p-10">
-                                <h2 className="text-2xl font-bold mb-6">Settings</h2>
-                                <div className="bg-card border border-border rounded-xl p-6">
-                                    <p className="text-muted-foreground">App version: 1.0.0 (Revamped)</p>
-                                </div>
+                            <div className="h-full flex flex-col">
+                                <SettingsView
+                                    library={library}
+                                    logs={logs}
+                                    onClearLogs={() => setLogs([])}
+                                />
                             </div>
                         )}
                     </div>

@@ -27,7 +27,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const isDev = process.env.NODE_ENV !== 'production' || process.env.DEBUG_PROD === 'true';
+const isDev = !app.isPackaged;
 const Store = require('electron-store');
 const store = new Store();
 const axios = require('axios');
@@ -262,7 +262,7 @@ ipcMain.on('refresh-novel', async (event, url) => {
     }
 });
 
-ipcMain.on('start-download', async (event, { url, chapters }) => {
+ipcMain.on('start-download', async (event, { url, chapters, options }) => {
     const scraper = getScraper();
     if (!scraper) return;
 
@@ -278,26 +278,77 @@ ipcMain.on('start-download', async (event, { url, chapters }) => {
     const novel = library.find(n => n.url === url);
     const contentTitle = novel ? novel.title : "Unknown Title";
 
-    for (const chapter of chapters) {
-        if (scraper.stopFlag) break;
+    // Enforce limits
+    let concurrency = options?.concurrency || 1;
+    const delay = options?.delay || 500;
+
+    if (siteInfo?.driver === 'legacy') {
+        concurrency = 1; // Legacy driver (Puppeteer shared page) cannot handle concurrency
+        if (options?.concurrency > 1) {
+            event.reply('log-update', 'Note: Legacy site detected. Forcing concurrency to 1.');
+        }
+    }
+
+    // Helper for delay
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Chunk array for concurrency
+    const queue = [...chapters];
+    let activeWorkers = 0;
+    let completed = 0;
+    let hasError = false;
+
+    // Worker function
+    const next = async () => {
+        if (scraper.stopFlag || queue.length === 0) return;
+
+        activeWorkers++;
+        const chapter = queue.shift();
+
         try {
             await scraper.downloadChapter(chapter, targetDir, siteInfo, contentTitle);
+
+            // Success handling
             const safeTitle = contentTitle.replace(/[\/\\:*?"<>|]/g, "");
             const chapterPath = path.join(targetDir, safeTitle);
-
             updateDownloadStatus(url, chapter.num, chapterPath);
             event.reply('chapter-status-update', { url, chapterNum: chapter.num });
 
+            completed++;
             event.reply('download-progress', {
                 current: chapter.num,
-                message: `Downloaded ${chapter.title}`
+                message: `Downloaded ${chapter.title} (${completed}/${chapters.length})`
             });
+
         } catch (e) {
             event.reply('error', `Error downloading ${chapter.num}: ${e.message}`);
+            hasError = true;
+        } finally {
+            activeWorkers--;
+            if (delay > 0) await wait(delay);
+            next(); // data-dependency chain
         }
+    };
+
+    // Start initial batch
+    const initialBatch = Math.min(concurrency, queue.length);
+    for (let i = 0; i < initialBatch; i++) {
+        next();
     }
-    event.reply('download-complete', true);
-    event.reply('library-data', getLibrary());
+
+    // Wait until all done
+    const checkDone = setInterval(() => {
+        if (queue.length === 0 && activeWorkers === 0) {
+            clearInterval(checkDone);
+            event.reply('download-complete', true);
+            event.reply('library-data', getLibrary());
+            if (scraper.stopFlag) {
+                event.reply('log-update', 'Download stopped by user.');
+            } else {
+                event.reply('log-update', 'Download finished.');
+            }
+        }
+    }, 500);
 });
 
 ipcMain.on('stop-download', () => {
@@ -588,4 +639,40 @@ ipcMain.on('export-novel', async (event, { url, chapters, format }) => {
         console.error(e);
         event.reply('error', `Export failed: ${e.message}`);
     }
+});
+
+ipcMain.handle('check-for-updates', async () => {
+    try {
+        const { data } = await axios.get('https://api.github.com/repos/CloudDaoist/Nocra/releases/latest');
+        const latestVersion = data.tag_name.replace('v', '');
+        const currentVersion = app.getVersion();
+
+        // Simple semantic version comparison
+        const v1 = currentVersion.split('.').map(Number);
+        const v2 = latestVersion.split('.').map(Number);
+
+        let updateAvailable = false;
+        for (let i = 0; i < 3; i++) {
+            const num1 = v1[i] || 0;
+            const num2 = v2[i] || 0;
+            if (num2 > num1) {
+                updateAvailable = true;
+                break;
+            } else if (num2 < num1) {
+                break;
+            }
+        }
+
+        return {
+            updateAvailable,
+            currentVersion,
+            latestVersion,
+            url: data.html_url
+        };
+    } catch (e) {
+        throw new Error(`Failed to check for updates: ${e.message}`);
+    }
+});
+ipcMain.on('open-external', (event, url) => {
+    require('electron').shell.openExternal(url);
 });

@@ -16,7 +16,13 @@ contextBridge.exposeInMainWorld('api', {
                 ipcRenderer.removeListener(channel, subscription);
             };
         }
-        return () => {};
+        return () => { };
+    },
+    invoke: (channel, data) => {
+        let validChannels = ['check-for-updates'];
+        if (validChannels.includes(channel)) {
+            return ipcRenderer.invoke(channel, data);
+        }
     },
     removeValidListener: (channel) => {
         ipcRenderer.removeAllListeners(channel);
