@@ -13,11 +13,13 @@ interface NovelDetailProps {
     onRefresh: (url: string) => void;
     onRead: (chapter: any) => void;
     onDelete: (url: string) => void;
+    isDownloading: boolean;
 }
 
-const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, onRefresh, onRead, onDelete }) => {
+const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, onRefresh, onRead, onDelete, isDownloading }) => {
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
-    const [activeTab, setActiveTab] = useState('available'); 
+    const [downloadingQueue, setDownloadingQueue] = useState<Set<any>>(new Set());
+    const [activeTab, setActiveTab] = useState('available');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
@@ -36,6 +38,12 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
             if (typeof removeErrorListener === 'function') removeErrorListener();
         };
     }, []);
+
+    useEffect(() => {
+        if (!isDownloading) {
+            setDownloadingQueue(new Set());
+        }
+    }, [isDownloading]);
 
     const isDownloaded = (chapterNum: any) => {
         return novel.downloads && novel.downloads[chapterNum];
@@ -61,7 +69,12 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
 
     const handleDownloadSelected = () => {
         const chapters = selectedIndices.map(i => displayedChapters[i]);
+        const newQueue = new Set(downloadingQueue);
+        chapters.forEach(c => newQueue.add(c.num));
+        setDownloadingQueue(newQueue);
+
         onDownload(chapters);
+        setSelectedIndices([]); // Clear selection immediately
     };
 
     const handleReadLatest = () => {
@@ -103,9 +116,9 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                     <ArrowLeft size={20} />
                 </Button>
                 <div className="flex gap-2">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         className="rounded-full bg-background/50 backdrop-blur-md border border-border/50 text-destructive hover:bg-destructive/10"
                         onClick={() => {
                             if (confirm(`Are you sure you want to delete "${novel.title}"?`)) {
@@ -170,14 +183,14 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                 <Button size="lg" className="h-12 px-8 gap-2 shadow-xl shadow-primary/20 rounded-xl" onClick={handleReadLatest}>
                                     <BookOpen size={20} /> Start Reading
                                 </Button>
-                                <Button 
-                                    size="lg" 
-                                    variant="outline" 
-                                    className="h-12 px-6 gap-2 rounded-xl bg-background/50 backdrop-blur-md border-border/50 hover:bg-muted" 
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="h-12 px-6 gap-2 rounded-xl bg-background/50 backdrop-blur-md border-border/50 hover:bg-muted"
                                     onClick={handleRefresh}
                                     disabled={isRefreshing}
                                 >
-                                    {isRefreshing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />} 
+                                    {isRefreshing ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
                                     {isRefreshing ? "Refreshing..." : "Refresh"}
                                 </Button>
                             </div>
@@ -185,7 +198,7 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                             {novel.metadata?.summary && (
                                 <div className="space-y-2">
                                     <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Summary</h3>
-                                    <p 
+                                    <p
                                         className={cn(
                                             "text-muted-foreground leading-relaxed text-sm max-w-3xl cursor-pointer transition-all",
                                             isSummaryExpanded ? "line-clamp-none" : "line-clamp-4"
@@ -249,6 +262,7 @@ const NovelDetail: React.FC<NovelDetailProps> = ({ novel, onBack, onDownload, on
                                 onToggleAll={toggleAll}
                                 savedNovel={novel}
                                 onRead={onRead}
+                                downloadingChapterNums={downloadingQueue}
                             />
                         </div>
                     </div>

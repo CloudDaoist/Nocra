@@ -43,7 +43,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ library, onSelectNovel, onAdd
     };
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        <div className="h-full flex flex-col overflow-hidden bg-background">
             <div className="px-8 pt-8 pb-4 flex flex-col gap-6">
                 <div className="flex justify-between items-center">
                     <div>

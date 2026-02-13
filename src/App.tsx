@@ -154,6 +154,7 @@ function App() {
                                 onRefresh={handleRefreshNovel}
                                 onRead={handleRead}
                                 onDelete={handleDeleteNovel}
+                                isDownloading={isDownloading}
                             />
                         )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, BookOpen } from 'lucide-react';
+import { Check, BookOpen, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -10,9 +10,10 @@ interface ChapterListProps {
     onToggleAll: () => void;
     savedNovel: any;
     onRead?: (chapter: any) => void;
+    downloadingChapterNums?: Set<any>;
 }
 
-const ChapterList: React.FC<ChapterListProps> = ({ chapters, selectedIndices, onToggle, onToggleAll, savedNovel, onRead }) => {
+const ChapterList: React.FC<ChapterListProps> = ({ chapters, selectedIndices, onToggle, onToggleAll, savedNovel, onRead, downloadingChapterNums }) => {
     if (!chapters || chapters.length === 0) return null;
 
     return (
@@ -32,6 +33,7 @@ const ChapterList: React.FC<ChapterListProps> = ({ chapters, selectedIndices, on
                 {chapters.map((chapter, index) => {
                     const isSelected = selectedIndices.includes(index);
                     const isDownloaded = savedNovel && savedNovel.downloads && savedNovel.downloads[chapter.num];
+                    const isDownloading = downloadingChapterNums?.has(chapter.num);
 
                     return (
                         <div
@@ -50,12 +52,16 @@ const ChapterList: React.FC<ChapterListProps> = ({ chapters, selectedIndices, on
                             }}
                         >
                             {!isDownloaded && (
-                                <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => { }}
-                                    className="w-4 h-4 rounded border-input text-primary focus:ring-primary/20 accent-primary"
-                                />
+                                isDownloading ? (
+                                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                ) : (
+                                    <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => { }}
+                                        className="w-4 h-4 rounded border-input text-primary focus:ring-primary/20 accent-primary"
+                                    />
+                                )
                             )}
 
                             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
